@@ -1,10 +1,17 @@
 package com.example.my_auth_server.config.security;
 
+import com.example.my_auth_server.user.service.JwtAuthenticationService;
+import com.example.my_auth_server.user.service.LoginAttemptService;
+import com.example.my_auth_server.user.service.LoginSuccessAfterService;
+import com.example.my_auth_server.util.WebUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -22,14 +29,31 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 @EnableWebSecurity
 public class SecurityConfiguration {
 
+    private final UserDetailsService userDetailsService;
+    private final JwtAuthenticationService jwtAuthenticationService;
+    private final LoginAttemptService loginAttemptService;
+    private final LoginSuccessAfterService loginSuccessAfterService;
+    //private final SocialUserAuthenticationService socialUserAuthenticationService;
+    //private final GoogleVerificationService googleVerificationService;
+    private final Environment env;
+    private final WebUtil webUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    public SecurityConfiguration(@Autowired ApplicationEventPublisher applicationEventPublisher) {
+    @Value("${jwt.secret}")
+    private String secret;
+
+    public SecurityConfiguration(UserDetailsService userDetailsService, JwtAuthenticationService jwtAuthenticationService, LoginAttemptService loginAttemptService, LoginSuccessAfterService loginSuccessAfterService, Environment env, WebUtil webUtil, @Autowired ApplicationEventPublisher applicationEventPublisher) {
+        this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationService = jwtAuthenticationService;
+        this.loginAttemptService = loginAttemptService;
+        this.loginSuccessAfterService = loginSuccessAfterService;
+        this.env = env;
+        this.webUtil = webUtil;
         this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Bean
-    protected SecurityFilterChain filterChain(HttpSecurity http, DefaultAuthenticationEventPublisher defaultAuthenticationEventPublisher) throws Exception {
+    protected SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         //스프링이 내부적으로 사용하는 AuthenticationManagerBuilder를 꺼내옴.
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
 
@@ -44,10 +68,13 @@ public class SecurityConfiguration {
         http
                 .csrf(CsrfConfigurer::disable)  //CSRF 보호 끄기(JWT는 세션 사용X)
                 .sessionManagement(configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilter(new JwtAuthenticationFilter(authenticationManagerBuilder.getObject(), loginAttemptService, loginSuccessAfterService, jwtAuthenticationService, webUtil))
+                .addFilter(new JwtAuthorizationFilter(authenticationManagerBuilder.getObject(), jwtAuthenticationService, secret))
                 .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers(
-                        "/test/*"
+                        "/test/**", "/auth/join/**", "/auth/token/refresh"
                 ).permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                  .anyRequest().authenticated()
                 )
                 .exceptionHandling(httpSecurityExceptionHandlingConfigurer -> httpSecurityExceptionHandlingConfigurer.accessDeniedHandler(accessDeniedHandler()));
@@ -68,6 +95,7 @@ public class SecurityConfiguration {
     public CustomUserDetailsAuthenticationProvider authenticationProvider() {
         CustomUserDetailsAuthenticationProvider authenticationProvider = new CustomUserDetailsAuthenticationProvider();
         authenticationProvider.setPasswordEncoder(passwordEncoder());
+        authenticationProvider.setUserDetailsService(userDetailsService);
         return authenticationProvider;
     }
 
