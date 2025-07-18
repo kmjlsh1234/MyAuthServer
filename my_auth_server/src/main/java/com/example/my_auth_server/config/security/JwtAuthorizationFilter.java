@@ -105,6 +105,8 @@ public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
             errorCode = jwtAuthenticationService.checkBlackListUser(userId);
             if(errorCode != null){
                 errorResponse(response, errorCode);
+
+                
             }
             LoginAddInfo loginAddInfo = new LoginAddInfo();
             loginAddInfo.setLoginType(LoginType.getLoginTypeAsType(loginType));

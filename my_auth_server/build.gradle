@@ -41,6 +41,8 @@ dependencies {
     //JWT
     implementation 'com.auth0:java-jwt:4.4.0'
     annotationProcessor 'jakarta.xml.bind:jakarta.xml.bind-api'
+    // google api for credential
+    implementation 'com.google.api-client:google-api-client:2.2.0'
 }
 
 tasks.named('test') {
