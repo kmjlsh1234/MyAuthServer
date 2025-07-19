@@ -38,3 +38,16 @@ CREATE TABLE `refresh_token`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='리프레시 토큰';
+
+CREATE TABLE `social_login`
+(
+    `id`            bigint       NOT NULL AUTO_INCREMENT COMMENT '소셜로그인 고유번호',
+    `user_id`       bigint       DEFAULT NULL COMMENT '유저고유번호',
+    `provider_type` tinyint      NOT NULL COMMENT '소셜 로그인 프로바이더 종류',
+    `social_id`     varchar(100) NOT NULL COMMENT '소셜 프로바이더  유저 고유 식별 아이디',
+    `created_at`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성시각',
+    `updated_at`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '변경시각',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='소셜 로그인';

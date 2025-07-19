@@ -1,8 +1,10 @@
 package com.example.my_auth_server.config.security;
 
+import com.example.my_auth_server.social.service.GoogleVerificationService;
 import com.example.my_auth_server.user.service.JwtAuthenticationService;
 import com.example.my_auth_server.user.service.LoginAttemptService;
 import com.example.my_auth_server.user.service.LoginSuccessAfterService;
+import com.example.my_auth_server.user.service.SocialUserAuthenticationService;
 import com.example.my_auth_server.util.WebUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,8 +35,8 @@ public class SecurityConfiguration {
     private final JwtAuthenticationService jwtAuthenticationService;
     private final LoginAttemptService loginAttemptService;
     private final LoginSuccessAfterService loginSuccessAfterService;
-    //private final SocialUserAuthenticationService socialUserAuthenticationService;
-    //private final GoogleVerificationService googleVerificationService;
+    private final SocialUserAuthenticationService socialUserAuthenticationService;
+    private final GoogleVerificationService googleVerificationService;
     private final Environment env;
     private final WebUtil webUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -42,18 +44,20 @@ public class SecurityConfiguration {
     @Value("${jwt.secret}")
     private String secret;
 
-    public SecurityConfiguration(UserDetailsService userDetailsService, JwtAuthenticationService jwtAuthenticationService, LoginAttemptService loginAttemptService, LoginSuccessAfterService loginSuccessAfterService, Environment env, WebUtil webUtil, @Autowired ApplicationEventPublisher applicationEventPublisher) {
+    public SecurityConfiguration(UserDetailsService userDetailsService, JwtAuthenticationService jwtAuthenticationService, LoginAttemptService loginAttemptService, LoginSuccessAfterService loginSuccessAfterService, SocialUserAuthenticationService socialUserAuthenticationService, GoogleVerificationService googleVerificationService, Environment env, WebUtil webUtil, @Autowired ApplicationEventPublisher applicationEventPublisher) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationService = jwtAuthenticationService;
         this.loginAttemptService = loginAttemptService;
         this.loginSuccessAfterService = loginSuccessAfterService;
+        this.socialUserAuthenticationService = socialUserAuthenticationService;
+        this.googleVerificationService = googleVerificationService;
         this.env = env;
         this.webUtil = webUtil;
         this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Bean
-    protected SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    protected SecurityFilterChain filterChain(HttpSecurity http, SocialUserAuthenticationService socialUserAuthenticationService) throws Exception {
         //스프링이 내부적으로 사용하는 AuthenticationManagerBuilder를 꺼내옴.
         AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
 
@@ -70,6 +74,7 @@ public class SecurityConfiguration {
                 .sessionManagement(configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilter(new JwtAuthenticationFilter(authenticationManagerBuilder.getObject(), loginAttemptService, loginSuccessAfterService, jwtAuthenticationService, webUtil))
                 .addFilter(new JwtAuthorizationFilter(authenticationManagerBuilder.getObject(), jwtAuthenticationService, secret))
+                .addFilter(new SocialAuthenticationFilter(authenticationManagerBuilder.getObject(),googleVerificationService, jwtAuthenticationService, loginSuccessAfterService, socialUserAuthenticationService, webUtil))
                 .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers(
                         "/test/**", "/auth/join/**", "/auth/token/refresh"
